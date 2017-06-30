@@ -104,4 +104,4 @@
 
 (defn ref-attr->ref-namespaces
   [db attr]
-  ())
+  '())
