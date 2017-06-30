@@ -1,0 +1,38 @@
+{:db/id #db/id[:db.part/user -1]
+ :user/first-name "Dan"
+ :user/last-name "Jolicoeur"
+ :user/email "djjolicoeur@gmail.com"
+ :user/gender :user.gender/male
+ :user/role [:user.role/user :user.role/admin]
+ :user/friend [#db/id[:db.part/user -2] #db/id[:db.part/user -3]]
+ :user/school
+ [{:user.school/name "UMBC"
+   :user.school/major :school.major/computer-science
+   :user.school/mascot "Retrievers"}
+  {:user.school/name "Towson"
+   :user.school/major :school.major/music
+   :user.school/mascot "Tigers"}]}
+
+{:db/id #db/id[:db.part/user -2]
+ :user/first-name "Casey"
+ :user/last-name "Jolicoeur"
+ :user/gender :user.gender/female
+ :user/email "casey@gmail.com"
+ :user/role [:user.role/user :user.role/admin]
+ :user/friend [#db/id[:db.part/user -1] #db/id[:db.part/user -3]]
+ :user/school
+ [{:user.school/name "Salisbury U."
+   :user.school/major :school.major/business-administration
+   :user.school/mascot "Seagulls"}]}
+
+{:db/id #db/id[:db.part/user -3]
+ :user/first-name "Ginny"
+ :user/last-name "Jolicoeur"
+ :user/gender :user.gender/female
+ :user/email "ginny@gmail.com"
+ :user/role [:user.role/user]
+ :user/friend [#db/id[:db.part/user -1] #db/id[:db.part/user -2]]
+ :user/school
+ [{:user.school/name "Obedience School"
+   :user.school/major :school.major/obedience
+   :user.school/mascot "Dogs"}]}
