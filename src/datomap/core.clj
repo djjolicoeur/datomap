@@ -1,6 +1,8 @@
 (ns datomap.core
   (:require [datomic.api :as d]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [loom.graph :as graph]
+            [loom.io :as loom.io]))
 
 (defn internal?
   [attr]
@@ -47,7 +49,6 @@
 
 (defn entity->txable
   [entity]
-  (println entity)
   (update entity
           :db/id
           (fn [e] (d/tempid :db.part/db (* -1  e)))))
@@ -62,7 +63,6 @@
   [db]
   (reduce
    (fn [coll [k v]]
-     (println k " " v)
      (into coll (map entity->txable v)))
    []
    (dump-schema db)))
@@ -79,9 +79,7 @@
   [db file]
   (let [schema (schema->txable db)]
     (doseq [attr schema]
-      (spit file
-            (format-entity attr)
-            :append true))))
+      (spit file (format-entity attr) :append true))))
 
 
 (defn by-ident
@@ -97,11 +95,72 @@
   (d/q '[:find [?attr-name ...]
          :in $ ?attr
          :where
-         [_ :attr ?v]
+         [_ ?attr ?v]
          [?v ?e-attr _]
          [?e-attr :db/ident ?attr-name]]
        db attr))
 
+(defn namespace-or-ident
+  [k]
+  (if (= :db/ident k) k
+      (keyword (namespace k))))
+
 (defn ref-attr->ref-namespaces
   [db attr]
-  '())
+  (->> attr
+       (attr-ref-attrs db)
+       (map namespace-or-ident)
+       set))
+
+(defn by-value-type
+  [db]
+  (->> db
+       all-attr-entities
+       (group-by :db/valueType)))
+
+(defn db-refs
+  [db]
+  (:db.type/ref (by-value-type db)))
+
+
+(defn db->ref-maps
+  [db]
+  (let [refs (map :db/ident (db-refs db))
+        refs-to (map (partial ref-attr->ref-namespaces db) refs)
+        global-namespaces (apply clojure.set/intersection refs-to)]
+    (zipmap refs
+            (map (fn [ref-to]
+                   (remove global-namespaces ref-to)) refs-to))))
+
+(defn ref-map->ref-edges
+  [[k v]]
+  (map (fn [ns] [k ns]) v))
+
+(defn db->ref-edges
+  [db]
+  (mapcat ref-map->ref-edges (db->ref-maps db)))
+
+(defn root->edge
+  [[k v]]
+  (map (fn [entity] [k (:db/ident entity)]) v))
+
+(defn by-root->edges
+  [by-root]
+  (mapcat root->edge by-root))
+
+(defn schema->graph
+  [db]
+  (let [g (graph/digraph)
+        by-root (dump-schema db)
+        root-edges (by-root->edges by-root)
+        all-attrs (by-ident db)
+        ref-edges (db->ref-edges db)
+        g (apply graph/add-nodes (cons g (keys by-root)))
+        g (apply graph/add-nodes (cons g (keys all-attrs)))
+        g (apply graph/add-edges (cons g root-edges))
+        g (apply graph/add-edges (cons g ref-edges))]
+    g))
+
+(defn view-schema
+  [db]
+  (loom.io/view (schema->graph db)))
