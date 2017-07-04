@@ -81,7 +81,6 @@
     (doseq [attr schema]
       (spit file (format-entity attr) :append true))))
 
-
 (defn by-ident
   [attr-entities]
   (reduce
@@ -119,26 +118,35 @@
        (group-by :db/valueType)))
 
 (defn db-refs
-  [db]
-  (:db.type/ref (by-value-type db)))
-
+  ([db]
+   (:db.type/ref (by-value-type db)))
+  ([db entity-namespaces]
+   (let [ns-set (set entity-namespaces)]
+     (filter
+      #(ns-set (keyword (namespace (:db/ident %))))
+      (db-refs db)))))
 
 (defn db->ref-maps
-  [db]
-  (let [refs (map :db/ident (db-refs db))
-        refs-to (map (partial ref-attr->ref-namespaces db) refs)
-        global-namespaces (apply clojure.set/intersection refs-to)]
-    (zipmap refs
-            (map (fn [ref-to]
-                   (remove global-namespaces ref-to)) refs-to))))
+  ([db] (db->ref-maps db nil))
+  ([db entity-namespaces]
+   (let [refs (if (seq entity-namespaces)
+                (map :db/ident (db-refs db entity-namespaces))
+                (map :db/ident (db-refs db)))
+         refs-to (map (partial ref-attr->ref-namespaces db) refs)
+         global-namespaces (apply clojure.set/intersection refs-to)]
+     (zipmap refs
+             (map (fn [ref-to]
+                    (remove global-namespaces ref-to)) refs-to)))))
 
 (defn ref-map->ref-edges
   [[k v]]
   (map (fn [ns] [k ns]) v))
 
 (defn db->ref-edges
-  [db]
-  (mapcat ref-map->ref-edges (db->ref-maps db)))
+  ([db]
+   (mapcat ref-map->ref-edges (db->ref-maps db)))
+  ([db entity-namespaces]
+   (mapcat ref-map->ref-edges (db->ref-maps db entity-namespaces))))
 
 (defn root->edge
   [[k v]]
@@ -148,19 +156,46 @@
   [by-root]
   (mapcat root->edge by-root))
 
+(defn attr-map->edge
+  [attr-map]
+  (map (fn [[k v]] [(:db/ident attr-map) (pr-str [k v])])
+       (dissoc attr-map :db/id :db/ident)))
+
+(defn attr-maps->edges
+  [attr-maps]
+  (mapcat attr-map->edge attr-maps))
+
 (defn schema->graph
-  [db]
-  (let [g (graph/digraph)
-        by-root (dump-schema db)
-        root-edges (by-root->edges by-root)
-        all-attrs (by-ident db)
-        ref-edges (db->ref-edges db)
-        g (apply graph/add-nodes (cons g (keys by-root)))
-        g (apply graph/add-nodes (cons g (keys all-attrs)))
-        g (apply graph/add-edges (cons g root-edges))
-        g (apply graph/add-edges (cons g ref-edges))]
-    g))
+  ([db]
+   (let [g (graph/digraph)
+         by-root (dump-schema db)
+         root-edges (by-root->edges by-root)
+         all-attrs (by-ident (all-attr-entities db))
+         _ (println all-attrs)
+         attr-edges (attr-maps->edges (vals all-attrs))
+         ref-edges (db->ref-edges db)
+         g (apply graph/add-nodes (cons g (keys by-root)))
+         g (apply graph/add-nodes (cons g (keys all-attrs)))
+         g (apply graph/add-edges (cons g root-edges))
+         g (apply graph/add-edges (cons g ref-edges))
+         g (apply graph/add-edges (cons g attr-edges))]
+     g))
+  ([db entity-namespaces]
+   (let [g (graph/digraph)
+         by-root (select-keys (dump-schema db) entity-namespaces)
+         root-edges (by-root->edges by-root)
+         all-attrs (mapcat (fn [[k v]] v) by-root)
+         attr-edges (attr-maps->edges all-attrs)
+         ref-edges (db->ref-edges db entity-namespaces)
+         g (apply graph/add-nodes (cons g entity-namespaces))
+         g (apply graph/add-nodes (cons g (map :db/ident all-attrs)))
+         g (apply graph/add-edges (cons g root-edges))
+         g (apply graph/add-edges (cons g ref-edges))
+         g (apply graph/add-edges (cons g attr-edges))]
+     g)))
 
 (defn view-schema
-  [db]
-  (loom.io/view (schema->graph db)))
+  ([db]
+   (loom.io/view (schema->graph db)))
+  ([db entity-namespaces]
+   (loom.io/view (schema->graph db entity-namespaces))))
