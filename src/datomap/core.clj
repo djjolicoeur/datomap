@@ -171,7 +171,6 @@
          by-root (dump-schema db)
          root-edges (by-root->edges by-root)
          all-attrs (by-ident (all-attr-entities db))
-         _ (println all-attrs)
          attr-edges (attr-maps->edges (vals all-attrs))
          ref-edges (db->ref-edges db)
          g (apply graph/add-nodes (cons g (keys by-root)))
