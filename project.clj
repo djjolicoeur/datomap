@@ -3,8 +3,10 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.8.0"]
-                 [aysylu/loom "1.0.0"]]
+  :dependencies [[aysylu/loom "1.0.0"]
+                 [org.clojure/clojure "1.8.0"]
+                 [hiccup "1.0.5"]
+                 [jcf/dorothy "0.0.7-SNAPSHOT"]]
   :profiles {:dev {:plugins [[lein-kibit "0.1.2"]]
                    :source-paths ["dev"]
                    :resource-paths ["dev-resources"]
