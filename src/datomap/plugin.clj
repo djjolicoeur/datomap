@@ -1,13 +1,13 @@
 (ns datomap.plugin
-  (:require [datomic.api :as d]
-            [datomap.core :as dmap]
-            [datomap.io :as dmap.io]))
+  (:require [datomap.core :as dmap]
+            [datomap.io :as dmap.io]
+            [datomic.api :as d]))
 
 (defn- parse-arg [[k v]]
   (let [kw (keyword (subs k 1))]
     [kw v]))
 
-(defn- parse-args [args]
+(defn parse-args [args]
   (let [arg-count (count args)]
     (if (even? arg-count)
       (into {} (map parse-arg (apply hash-map args)))
@@ -15,7 +15,6 @@
        (ex-info (str "Even number of forms required! got: " arg-count)
                 {:args args
                  :causes #{:invalid-args}})))))
-
 
 (defn render-graph
   [graph-type db]
@@ -45,7 +44,7 @@
          file-out :file-out
          :as args
          :or {op "graph"
-              graph-type "tables"}} (parse-args ~args)
+              graph-type "tables"}} (parse-args args)
         conn (d/connect uri)
         db (d/db conn)]
     (case op

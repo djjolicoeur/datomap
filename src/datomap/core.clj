@@ -1,6 +1,6 @@
 (ns datomap.core
-  (:require [datomic.api :as d]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
+            [datomic.api :as d]
             [loom.graph :as graph]))
 
 (defn internal?
